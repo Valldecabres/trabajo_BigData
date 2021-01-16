@@ -1,0 +1,402 @@
+---
+title: "Introspección al mundo del tenis"
+author: "Universitat de València"
+date: "Enero de 2021 (actualizado el `r format(Sys.time(), '%d-%m-%Y')`)"
+output:
+  html_document:
+    theme: paper
+    highlight: textmate
+    toc: yes
+    toc_depth: 3
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+    self_contained: yes
+    number_sections: no
+    df_print: kable
+    code_download: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+subtitle: Mar Valldecabres Lull(valldeca@alumni.uv.es)
+editor_options:
+  chunk_output_type: console
+---
+
+```{r packages-setup, include = FALSE}
+library(tidyverse)
+library(klippy)  #- remotes::install_github("rlesur/klippy")
+library(knitr)
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(ggThemeAssist)
+library(scales)
+library(plotly)
+library(gapminder)
+library(gganimate)
+library(reactable)
+library(gt)
+library(wordcloud2)
+library(maps)
+```
+
+```{r chunk-setup, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, message = FALSE, warning = FALSE, 
+                      #results = "hold",
+                      cache = FALSE, cache.path = "/caches/", comment = "#>",
+                      #fig.width = 7, #fig.height= 7,   
+                      #out.width = 7, out.height = 7,
+                      collapse = TRUE,  fig.show = "hold",
+                      fig.asp = 7/9, out.width = "60%", fig.align = "center")
+knitr::opts_chunk$set(dev = "png", dev.args = list(type = "cairo-png"))
+```
+
+```{r options-setup, include = FALSE}
+options(scipen = 999) #- para quitar la notación científica
+options("yaml.eval.expr" = TRUE) 
+```
+
+
+```{r klippy, echo = FALSE}
+klippy::klippy(position = c("top", "right")) #- remotes::install_github("rlesur/klippy")
+```
+
+<hr class="linea-black">
+
+Trabajo elaborado para la asignatura "Programación y manejo de datos en la era del Big Data" de la Universitat de València durante el curso 2020-2021. El repo del trabajo está [aquí](https://github.com/valldecabres/trabajo_BigData){target="_blank"}. La página web de la asignatura y los trabajos de mis compañeros pueden verse [aquí](https://perezp44.github.io/intro-ds-20-21-web/07-trabajos.html){target="_blank"}.
+
+<!-- El párrafo de arriba has de dejarlo casi igual, 
+        solo HAS de SUSTITUIR las 2 veces que aparece "perezp44" por tu usuario de Github-->
+
+<hr class="linea-red">
+
+# **1. Introducción**
+
+<div style = "text-align: justify">Este trabajo consiste en un análisis de los distintos torneos de tenis que existen, así como de los tenistas que participan en los campeonatos. El objetivo fundamental del trabajo, además de demostrar lo aprendido en la asignatura de Programación y manejo de datos en la era del Big Data es, profundizar un poco en la historia de este deporte. </div/>
+
+
+
+```{r, echo = FALSE, eval = TRUE, out.width = "40%", fig.align = "center", fig.cap="Figura 1"}
+knitr::include_graphics(here::here("imagenes", "1.jpg") ) 
+```
+
+
+
+# **2. Datos**
+
+<div style = "text-align: justify">Los datos los he obtenido de la ruta que se muestra en el siguiente chunk. Al tener tantos datos he tenido que ir haciendo modificacines a los datos originales y realizar el análisis diviendo estos en segmentos.</div/>
+
+```{r, eval = TRUE}
+datos_tenis <- read_excel("./Datos/datos_tenis.xlsx")
+```
+
+
+## 2.1. Procesando los datos
+
+<div style = "text-align: justify">Para poder usar los datos: Primero, he separado la columna de Date en tres: Año, mes y día y después he eliminado las columnas: Serie, Court y Best of. De esta forma he conseguido unos datos limpios y fáciles de manipular. </div/>
+
+```{r, eval = TRUE}
+datos_tenis1 <- datos_tenis %>% separate(col = Date, 
+              into = c("Año", "Mes", "Dia"),
+              sep  = "-")
+datos_tenis2 <- datos_tenis1 %>% select(-Series, -Court, -`Best of`)
+```
+
+
+# **3. Cuestiones**
+
+## <span style = "color:blue">3.1 ¿Cuántos campeonatos de tenis existen?.</span>
+
+Con el siguiente código agrupamos los diferentes torneos y averiguamos que se juegan en todo el mundo 206 torneos distintos.
+
+```{r, echo = TRUE, eval = TRUE}
+tabla1 <- datos_tenis2 %>% group_by(Tournament) %>% count() %>% arrange(desc(n))
+```
+
+```{r, echo = FALSE, eval = TRUE, out.width = "50%", fig.align = "center", fig.cap="Figura 2"}
+knitr::include_graphics(here::here("imagenes", "Logos.jpg") ) 
+```
+
+La sigiente tabla muestra los torneos que existen por nombre y número de veces que se han jugado.
+
+```{r eval=TRUE, echo=FALSE}
+
+reactable(tabla1, defaultPageSize =  10,  paginationType = "jump", showPageSizeOptions =  TRUE , pageSizeOptions =  c ( 10 , 50 , 100 ),defaultColDef = colDef(
+    align = "center",
+    minWidth = 70,
+    headerStyle = list(background = "aliceblue"),
+    filterable = TRUE),  highlight = TRUE, outlined = TRUE,
+    columns = list(
+  `Movies&TVShow/año` = colDef(style = function(value) {
+    if (value > 0) {
+      color <- "#e00000"}
+      else {
+      color <- "#008000"
+    }
+    list(color = color, fontWeight = "bold")
+  })))
+
+```
+
+## <span style = "color:blue">3.2 Análisis del torneo Wimbledon.</span>{.tabset .tabset-pills}
+
+><div style = "text-align: justify">Es el más prestigioso y antiguo del mundo. Lo organiza el All England Lawn Tennis and Croquet Club y se lleva a cabo en junio/julio en Wimbledon, Londres, desde el año 1877. Se juegan torneos simultáneos de individuales masculinos y femeninos, dobles masculinos y femeninos, y dobles mixtos e incluso se hacen torneos juveniles individuales masculinos y femeninos y en dobles. Los campeones en el año 2016 en la categoría de individuales fueron Andy Murray y Serena Williams. </div/>
+
+```{r, echo = FALSE, eval = TRUE, out.width = "50%", fig.align = "center", fig.cap="Figura 3"}
+knitr::include_graphics(here::here("imagenes", "Wimbledon.jpg") ) 
+```
+
+
+```{r, echo = FALSE, eval = TRUE}
+tablawimbledon1 <- datos_tenis2 %>% filter(Tournament == "Wimbledon") 
+
+```
+
+### FEDERER
+
+><div style = "text-align: justify">El tenista que más torneos Wimbledon ha ganado es Federer. 
+Roger Federer es un tenista suizo. Vencedor de 20 títulos individuales en torneos de Grand Slam, el mayor número de toda la historia en tenis masculino junto a Rafael Nadal y ha mantenido el puesto número 1 en el ranking de la ATP por un tiempo récord de 310 semanas, 237 consecutivas. Actualmente ocupa el quinto lugar en la clasificación ATP.</div/>
+><div style = "text-align: justify">Ha logrado ocho títulos del Campeonato de Wimbledon, seis del Abierto de Australia y cinco del Abierto de Estados Unidos, así como un título del Torneo de Roland Garros. Es uno de los ocho tenistas que ha logrado vencer en los cuatro torneos del Grand Slam. También ostenta el mejor registro en el número de finales de Grand Slam jugadas: 31, diez de estas consecutivas, entre la final de Wimbledon 2005 y el Abierto de Estados Unidos 2007. Así mismo, ha logrado un registro imbatido de seis ATP World Tour Finals, 28 Masters 1000, récord de 24 títulos ATP World Tour 500 y 25 ATP World Tour 250. </div/>
+
+
+```{r, echo = TRUE, eval = TRUE}
+tablawimbledon2 <- tablawimbledon1 %>%group_by(Winner) %>% summarise(n=n()) %>% na.omit(datos) %>% slice_max(n,n =1)
+
+```
+
+```{r eval=TRUE, echo=FALSE}
+knitr::kable(Tournament <- tablawimbledon2)
+
+```
+
+```{r, echo = FALSE, eval = TRUE, out.width = "50%", fig.align = "center", fig.cap="Figura 4"}
+knitr::include_graphics(here::here("imagenes", "Federer1.jpg") ) 
+```
+
+### Los 10 tenistas que más torneos han ganado:
+
+<div style = "text-align: justify">En el siguiente gráfico se pueden observar los 10 tenistas que más torneos Wimbledon han ganado. Se puede observar como Federer va en cabeza con un poco de ventaja, le siguen Murray y Djokovic.</div/>
+
+```{r, echo = FALSE, eval = TRUE, out.width = "60%", fig.align = "center"}
+
+tablawimbledon3 <- tablawimbledon1 %>%group_by(Winner) %>% summarise(n=n()) %>% na.omit(datos) %>% slice_max(n,n =10) 
+graficoWimbledon<- tablawimbledon3 %>% mutate(Winner = forcats::as_factor(Winner))
+graficoWimbledon2 <- ggplot (graficoWimbledon,aes(x=Winner, y = n), aes(fct_rev(Winner))) + geom_bar(stat="identity", fill = "blue") + coord_flip()
+graficoWimbledon2 + labs(title = "Gráfico de los 10 tenistas que más torneos Wimbledon han ganado",
+       caption = "Datos provenientes del datos_tenis2",
+       x = "Winner",
+       y = "n",
+       color = "blue")
+
+```
+
+## {-}
+
+## <span style = "color:blue">3.3 Análisis torneo Australian Open. </span> {.tabset .tabset-pills}
+
+><div style = "text-align: justify">Tiene lugar cada mes de enero en Melbourne, Australia, en el complejo deportivo situado en Melbourne Park y es famoso por las elevadas temperaturas en las que se juega. La competición se divide en categorías, existiendo categorías individuales y de dobles tanto para hombres como para mujeres, así como mixtos dobles y en estos últimos años, se han incluido también competiciones para jugadores en silla de ruedas. En el año 2017 el campeón de la categoría masculina fue Roger Federer venciendo en la final al mallorquín Rafa Nadal. En la categoría femenina la ganadora fue la conocida tenista estado unidense Serena Williams que curiosamente jugó la final contra su hermana Venus Williams. </div/>
+
+```{r, echo = FALSE, eval = TRUE}
+tablaAustralianOpen <- datos_tenis2 %>% filter(Tournament == "Australian Open") 
+
+```
+
+```{r, echo = FALSE, eval = TRUE, out.width = "50%", fig.align = "center", fig.cap="Figura 5"}
+knitr::include_graphics(here::here("imagenes", "FDN.jpg") ) 
+```
+
+### Winners
+
+A continuación se pueden observar los nombres de los ganadores del torneo Australian Open según el número de victorias.
+
+```{r, echo = FALSE, eval = TRUE, out.width = "70%", fig.align = "center"}
+
+tablaAustralianOpen1 <- tablaAustralianOpen %>%group_by(Winner) %>% summarise(n=n()) %>% na.omit(datos) %>% arrange(desc(n))
+
+```
+
+
+```{r eval=TRUE, echo=FALSE}
+
+reactable(tablaAustralianOpen1, defaultPageSize =  5,  paginationType = "jump", showPageSizeOptions =  TRUE , pageSizeOptions =  c ( 10 , 50 , 100 ),defaultColDef = colDef(
+    align = "center",
+    minWidth = 70,
+    headerStyle = list(background = "aquamarine"),
+    filterable = TRUE),  highlight = TRUE, outlined = TRUE,
+    columns = list(
+  `Movies&TVShow/año` = colDef(style = function(value) {
+    if (value > 0) {
+      color <- "#e00000"}
+      else {
+      color <- "#008000"
+    }
+    list(color = color, fontWeight = "bold")
+  })))
+
+```
+
+De forma más visual se pueden observar los ganadores del torneo relacionando el número de victorias con el tamaño de la letra.
+
+```{r, echo = FALSE, eval = TRUE, out.width = "70%", fig.align = "center"}
+
+tablaAustralianOpen1 <- tablaAustralianOpen %>%group_by(Winner) %>% summarise(n=n()) %>% na.omit(datos) %>% arrange(desc(n))
+
+
+nombreswinner <- tablaAustralianOpen1 %>% select(Winner, n)
+
+wordcloud2(data = nombreswinner, size = 0.6)
+
+```
+
+### Torneos completados Vs Torneos retirados
+
+En la tabla siguiente se puede observar como de los 2159 torneos que se han jugado tan solo en 89 ocasiones un jugador se ha retirado.
+
+```{r, echo = TRUE, eval = TRUE, out.width = "70%", fig.align = "center"}
+tablaAustralianOpen2 <- tablaAustralianOpen %>% group_by(Tournament, Comment)%>% count()
+
+```
+
+```{r eval=TRUE, echo=FALSE}
+knitr::kable(Tournament <- tablaAustralianOpen2)
+
+```
+
+
+## <span style = "color:blue">3.4 Análisis torneo US Open.</span>{.tabset .tabset-pills}
+
+```{r, echo = FALSE, eval = TRUE}
+tablaUSOpen1 <- datos_tenis2 %>% filter(Tournament == "US Open") 
+
+```
+
+><div style = "text-align: justify">***El torneo US Open se celebra anualmente entre agosto y septiembre en el USTA Billie Jean King National Tennis Center de Nueva York y consta de cinco modalidades: individuales de hombres y mujeres, dobles de hombres y mujeres y dobles mixtos, y  también torneos adicionales para jugadores Junior y Senior. El torneo reparte casi veinticuatro millones de dólares en premios.*** </div/>
+
+### FELICIANO LÓPEZ
+
+Con el siguiente chunk podemos ver que el tenista que más torneos US Open ha perido es:
+
+
+```{r, echo = TRUE, eval = TRUE}
+tablaUSOpen2 <- tablaUSOpen1 %>%group_by(Loser) %>% summarise(n=n()) %>% na.omit(datos) %>% slice_max(n,n =1)
+
+```
+
+```{r eval=TRUE, echo=FALSE}
+knitr::kable(Tournament <- tablaUSOpen2)
+
+```
+
+<div style = "text-align: justify">> ***La derrota de Feliciano López ante Gilles Simon por 6-4 y 6-3 en su debut en el Torneo de Viena ha hecho que el toledano se convierta en el tenista con más derrotas sufridas en el circuito ATP junto al francés Fabrice Santoro. A sus 38 años y tras 22 temporadas como profesional (debutó en 1997), Feliciano es uno de los jugadores más veteranos del circuito junto con Roger Federer. Esto no quiere decir que Feliciano sea uno de los peores tenistas del circuito, sino que los números se deben a su longevidad en el mismo. Feliciano López ha disputado un total de 929 partidos con 485 victorias y 444 derrotas, con un porcentaje de triunfos del 52,3%*** </div/>
+
+```{r, echo = FALSE, eval = TRUE, out.width = "50%", fig.align = "center", fig.cap="Figura 6"}
+knitr::include_graphics(here::here("imagenes", "F_Lopez.jpg") ) 
+```
+
+### WINNERS Vs LOSERS
+
+<div style = "text-align: justify">Con el siguiente chunk podemos observar las diferencias entre los 10 jugadores que más veces han ganado el US Open  y los 10 jugadores que más tonreos han perdido</div/>
+
+```{r, out.width='50%',fig.show='hold',fig.align='center', fig.cap="Dos gráficos R cara a cara"}
+
+tablaWRank <- tablaUSOpen1 %>%group_by(Winner) %>% summarise(Ranking=n()) %>% na.omit(datos) %>% slice_max(Ranking,n =10)
+
+graficoWRank <- tablaWRank %>% mutate(Winner = forcats::as_factor(Winner))
+graficoWRank1.1 <- ggplot (graficoWRank,aes(x=Winner, y = Ranking), aes(fct_rev(Winner))) + geom_bar(stat="identity", fill = "green") + coord_flip()
+graficoWRank1.1 + labs(title = "Gráfico de los 10 jugadores que más veces han ganado el US Open",
+       caption = "Datos provenientes del datos_tenis2",
+       x = "Winner",
+       y = "n",
+       color = "Especie de lirio")
+
+tablaWRank2 <- tablaUSOpen1 %>%group_by(Loser) %>% summarise(Ranking=n()) %>% na.omit(datos) %>% slice_max(Ranking,n =10)
+
+graficoWRank2 <- tablaWRank2 %>% mutate(Loser = forcats::as_factor(Loser))
+graficoWRank1.2 <- ggplot (graficoWRank2,aes(x=Loser, y = Ranking), aes(fct_rev(Loser))) + geom_bar(stat="identity", fill = "green") + coord_flip()
+graficoWRank1.1 + labs(title = "Gráfico de los 10 jugadores que más veces han perdido el US Open",
+       caption = "Datos provenientes del datos_tenis2",
+       x = "Loser",
+       y = "n",
+       color = "Especie de lirio")
+
+```
+
+# **4. Las 10 ciudades en las que se juegan más torneos**
+
+En este gráfico se pueden observar las 10 ciudades en las que más torneos se juegan.
+
+```{r, echo = FALSE, eval = TRUE}
+
+tablalocation <- datos_tenis2 %>%group_by(Location) %>% summarise(Ciudades=n()) %>% na.omit(datos) %>% slice_max(Ciudades,n =10)
+
+tablalocation1 <- tablalocation %>% mutate(Location = forcats::as_factor(Location))
+tablalocation1.1 <- ggplot (tablalocation1,aes(x=Location, y = Ciudades), aes(fct_rev(Location))) + geom_bar(stat="identity", fill = "black") + coord_flip()
+tablalocation1.1 + labs(title = "Gráfico de las 10 ciudades con más torneos jugados",
+       caption = "Datos provenientes del datos_tenis2",
+       x = "Location",
+       y = "Ciudades",
+       color = "Especie de lirio")
+```
+
+
+Este mapa nos muestra de forma más visual las 10 ciudades mencionadas anteriormente.
+
+```{r, echo = TRUE, eval = TRUE, out.width = "70%", fig.align = "center"}
+
+par(mar=c(0,0,0,0))
+map('world',
+    col="#f2f2f2", fill=TRUE, bg="white", lwd=0.05,
+    mar=rep(0,4),border=0, ylim=c(-80,80)
+)
+
+London <- c(-0.12,51)
+Paris <- c(2,49)
+Melbourne <- c(145,-38)
+New_York <- c(-73,40)
+Miami <- c(-80,25)
+Indian_Wells <- c(-116,33)
+Cincinnati <- c(-84,39)
+Monte_Carlo <- c(7,43)
+Rome <- c(12,41)
+Barcelona <- c(2,41)
+
+
+data <- rbind(London, Paris, Melbourne, New_York, Miami, Indian_Wells, Cincinnati, Monte_Carlo, Rome, Barcelona) %>% 
+  as.data.frame()
+colnames(data) <- c("long","lat")
+
+map('world',
+    col="#f2f2f2", fill=TRUE, bg="white", lwd=0.05,
+    mar=rep(0,4),border=0, ylim=c(-80,80) 
+)
+points(x=data$long, y=data$lat, col="slateblue", cex=3, pch=20)
+
+```
+
+# **5. Conclusiones**
+
+<div style = "text-align: justify">> En conclusión, existen un gran número de torneos de tenis dividos en distintas categorías. Los puestos ganadores de los grandes torneos suelen estas disputados siempre por los mismos tenistas. Después de este análisis podemos ver como llegar a alcanzar el historial de Federer, Djokovic y Nadal está muy dificil hoy en día. También hemos visto como importa mucho la longevidad que se tiene en este deporte ya que el porcentaje de victorias y derrotas puede variar. Por otro lado, en el apartado del gráfico del mapa del mundo se puede observar como la mayoría de las ciudades en las que más torneos de tenis se juegan son ciudades Europeas. </div/>
+
+
+# **6. Bibliografía**
+
+>Apuntes de la asignatura de Programación y Manejo de datos en la era del Big Data:
+https://perezp44.github.io/intro-ds-20-21-web/04-tutoriales.html
+
+> Información sobre distintos torneos:
+http://www.tenispontdincanou.com/blog/torneos/principales-campeonatos-y-torneos-del-tenis
+
+>Información sobre Feliciano Lopez:
+https://as.com/tenis/2019/10/23/mas_tenis/1571813516_380403.html
+
+>Página de referencia para los gráficos:
+https://www.r-graph-gallery.com/196-the-wordcloud2-library.html
+
+>Excel con los datos:
+https://www.kaggle.com/edouardthomas/beat-the-bookmakers-with-machine-learning-tennis
+
+# **7. Sesión Informativa**
+```{r}
+    sessioninfo::session_info() %>% details::details(summary = 'current session info')
+```
